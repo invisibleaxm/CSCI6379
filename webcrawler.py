@@ -1,4 +1,4 @@
-#!python3
+#!/usr/local/bin/python3
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 # CSCI 6379: Information Retrieval
 # Instructor: Dr. Chen
@@ -37,21 +37,27 @@ import re
 
 #start_url = 'http://portal.utpa.edu/utpa_main/daa_home/coecs_home/cs_home'
 start_url = 'http://portal.utpa.edu/utpa_main/daa_home/coecs_home/cs_home'
-base_dir = os.getcwd()
+base_os_dir = os.getcwd()+"/document_corpus"
+
 #start_url = 'https://my.utpa.edu/home'
 
 links = []
 
-
+# # # # # # # # # # # # # # # # # 
+# Simple function that will help "normalize" links. In other words, this function wil prepend the
+# base_url if needed.
+# # # # # # # # # # # # # # # # # #
 def get_url(link):
     if(link[0]=='/'):
         return start_url+link
     else:
         return link
 
+# # # # # # # # # # # # # # # # # # # # # # # # #
+# This function simply checks if the domain of the link is allowed (a.k.a. white listed
+# if it is not, then the program will skip the link 
+# # # # # # # # # # # # # # # # # # # # # # # # #
 def is_domain_allowed(link):
-#allowed domain is represented as a regular expression string.
-
     if(link=="/"):
         return False
     elif(link[0]=='/'):
@@ -61,11 +67,6 @@ def is_domain_allowed(link):
     else:
 #        print("Not allowed: "+link)
         return False
-   # if any(link in s for s in allowed_domains):
-   #     return True
-
-
-
 
 def follow_links(html_page):
     bs = BeautifulSoup(html_page)
@@ -75,8 +76,8 @@ def follow_links(html_page):
                 my_url = get_url(link["href"])
                 if my_url not in links:
                     links.append(my_url)
+        #print(links)
                     #get_html(my_url)
-                    print("recursive..")
                 #print(get_url(link["href"]))
                 # print(link["href"])
     except:
@@ -90,7 +91,11 @@ def get_html(url):
         req = Request(url, None, headers)
         page = urlopen(req).read()
         folder_structure = urlparse(url)
+        os_folderstructure = base_os_dir + folder_structure.path.rsplit('/',1)[0]
         filename = url.split('/')[-1].split('#')[0].split('?')[0]
+        if not os.path.exists(os_folderstructure):
+            os.makedirs(os_folderstructure)
+        print(os_folderstructure)
         print("Using Filename: " , filename)
         follow_links(page)
     except:
