@@ -128,8 +128,8 @@ def get_html(url):
         #traceback.print_exc(file=sys.stdout)
         #pass
 
-
-
-get_html(start_url)
-print("Total number of documents retrieved: {} ".format(len(links)))
-print("Total number of bad documents: {}".format(len(bad_links)))
+def __main__:
+    print("Welcome to CSCI 6370 web crawler")
+    get_html(start_url)
+    print("Total number of documents retrieved: {} ".format(len(links)))
+    print("Total number of bad documents: {}".format(len(bad_links)))
