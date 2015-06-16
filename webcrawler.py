@@ -39,14 +39,16 @@ import os
 import re
 
 #start_url = 'http://portal.utpa.edu/utpa_main/daa_home/coecs_home/cs_home'
-start_url = 'http://portal.utpa.edu/utpa_main/daa_home/coecs_home/cs_home'
+#start_url = 'http://portal.utpa.edu/utpa_main/daa_home/coecs_home/cs_home'
+start_url = 'http://www.dmoz.org/Computers/Programming/Languages/Python/Resources'
 base_os_dir = os.getcwd()+"/document_corpus"
 
 #start_url = 'https://my.utpa.edu/home'
 
 links = []
+bad_links = []
 
-# # # # # # # # # # # # # # # # # 
+# # # # # # # # # # # # # # # # #
 # Simple function that will help "normalize" links. In other words, this function wil prepend the
 # base_url if needed.
 # # # # # # # # # # # # # # # # # #
@@ -58,14 +60,14 @@ def get_url(link):
 
 # # # # # # # # # # # # # # # # # # # # # # # # #
 # This function simply checks if the domain of the link is allowed (a.k.a. white listed
-# if it is not, then the program will skip the link 
+# if it is not, then the program will skip the link
 # # # # # # # # # # # # # # # # # # # # # # # # #
 def is_domain_allowed(link):
     if(link=="/"):
         return False
     elif(link[0]=='/'):
         return True
-    elif re.match(r'(.*)utpa.edu(.*?)',link):
+    elif re.match(r'(.*)dmoz.org(.*?)',link):
         return True
     else:
 #        print("Not allowed: "+link)
@@ -75,45 +77,53 @@ def follow_links(html_page):
     bs = BeautifulSoup(html_page)
     try:
         for link in bs.find_all("a", href=re.compile('^http://|^/')) :
-            if link.has_attr('href') and is_domain_allowed(link['href']):
+            if link.has_attr('href') and is_domain_allowed(link['href']) and len(links) < 100:
                 my_url = get_url(link["href"])
-                if my_url not in links:
-                    links.append(my_url)
-        #print(links)
+                if my_url not in links and len(links) < 100:
                     get_html(my_url)
-                #print(get_url(link["href"]))
-                # print(link["href"])
     except:
         pass
 
 
 def get_html(url):
     try:
-        #print("Following URL: ", url)
-        #headers = { 'User-Agent' : 'Mozilla/5.0' }
-        #req = Request(url, None, headers)
-        #page = urlopen(req).read()
-        my_headers = { 'User-Agent': 'Mozilla/5.0' }
-        page = requests.get(url, headers = my_headers).text
-        folder_structure = urlparse(url)
-        os_folderstructure = base_os_dir + folder_structure.path.rsplit('/',1)[0]
-        filename = url.split('/')[-1].split('#')[0].split('?')[0]
-        if "." not in filename:
-            filename = filename + ".html"
-        if not os.path.exists(os_folderstructure):
-            os.makedirs(os_folderstructure,exist_ok=True)
-        full_filename = os.path.join(os_folderstructure + "/" + filename)
-        
-
-        print(os_folderstructure)
-        print("Using Filename: " , filename)
-        #print(page)
-        if filename != ".html":
-            with open(full_filename, 'w') as f:
-                f.write(page)
-        follow_links(page)
+        my_url = get_url(url)
+        if my_url not in links and my_url not in bad_links:
+            print("Following URL: ", url)
+       	    my_headers = { 'User-Agent': 'Mozilla/5.0' }
+            r = requests.get(url, headers = my_headers)
+            if r.status_code == requests.codes.ok:
+                page = r.text
+                folder_structure = urlparse(url)
+                #os_folderstructure = base_os_dir + folder_structure.path.rsplit('/',1)[0] ## add folder names from url
+                filename = url.split('/')[-1].split('#')[0].split('?')[0]
+                if "." not in filename:
+                    filename = filename + ".html"
+       	        #if not os.path.exists(os_folderstructure):
+                #    os.makedirs(os_folderstructure,exist_ok=True)
+                #full_filename = os.path.join(os_folderstructure + "/" + filename)
+                full_filename = base_os_dir + "/" + filename
+                #print(os_folderstructure)
+                print("Using Filename: " , filename)
+                #print(page)
+                if filename != ".html":
+                    try:
+                        with open(full_filename, 'w') as f:
+                            f.write(page)
+                    except:
+                        print("There was an error writing to file, flagging this page as bad")
+                        bad_links.append(my_url)
+                links.append(my_url)
+                print("Successfully fetched url {} now we are about to follow it's links".format(my_url))
+                if len(links) < 100:
+                    follow_links(page)
+            else:
+                bad_links.append(my_url)
+                print("Page couldnt be fetched. Response with status code {} ".format(r.status_code))
+        else:
+            print("Skipping URL: {} since we have been here before".format(my_url))
     except:
-        print("Couldnt open page: ", url)
+#        print("Couldnt open page: ", url)
         raise
         #traceback.print_exc(file=sys.stdout)
         #pass
@@ -121,3 +131,5 @@ def get_html(url):
 
 
 get_html(start_url)
+print("Total number of documents retrieved: {} ".format(len(links)))
+print("Total number of bad documents: {}".format(len(bad_links)))
