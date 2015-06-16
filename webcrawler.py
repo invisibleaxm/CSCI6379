@@ -28,10 +28,13 @@
 #
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
-from urllib.request import urlopen
-from urllib.request import Request
+#from urllib.request import urlopen
+#from urllib.request import Request
+import requests
 from bs4 import BeautifulSoup
 from urllib.parse import urlparse
+import sys, traceback
+import shutil
 import os
 import re
 
@@ -77,7 +80,7 @@ def follow_links(html_page):
                 if my_url not in links:
                     links.append(my_url)
         #print(links)
-                    #get_html(my_url)
+                    get_html(my_url)
                 #print(get_url(link["href"]))
                 # print(link["href"])
     except:
@@ -86,21 +89,34 @@ def follow_links(html_page):
 
 def get_html(url):
     try:
-        print("Following URL: ", url)
-        headers = { 'User-Agent' : 'Mozilla/5.0' }
-        req = Request(url, None, headers)
-        page = urlopen(req).read()
+        #print("Following URL: ", url)
+        #headers = { 'User-Agent' : 'Mozilla/5.0' }
+        #req = Request(url, None, headers)
+        #page = urlopen(req).read()
+        my_headers = { 'User-Agent': 'Mozilla/5.0' }
+        page = requests.get(url, headers = my_headers).text
         folder_structure = urlparse(url)
         os_folderstructure = base_os_dir + folder_structure.path.rsplit('/',1)[0]
         filename = url.split('/')[-1].split('#')[0].split('?')[0]
+        if "." not in filename:
+            filename = filename + ".html"
         if not os.path.exists(os_folderstructure):
-            os.makedirs(os_folderstructure)
+            os.makedirs(os_folderstructure,exist_ok=True)
+        full_filename = os.path.join(os_folderstructure + "/" + filename)
+        
+
         print(os_folderstructure)
         print("Using Filename: " , filename)
+        #print(page)
+        if filename != ".html":
+            with open(full_filename, 'w') as f:
+                f.write(page)
         follow_links(page)
     except:
         print("Couldnt open page: ", url)
-        pass
+        raise
+        #traceback.print_exc(file=sys.stdout)
+        #pass
 
 
 
