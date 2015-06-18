@@ -13,7 +13,7 @@
 # This program is a small web crawler that will be used to build a document
 # corpus for our search engine. This document corpus will be constructed by
 # following a "start_url" and then follow all links iff they are part of the
-# "allowed_domains" which in turn will recursevly call the function to keep
+# "allowed_domain" which in turn will recursevly call the function to keep
 # downloading all links until done.
 # the downloaded documents will be kept in the directory "document_corpus"
 # and will be named after the full URL of the original file location (to avoid
@@ -22,14 +22,13 @@
 #
 # Credits:  This program was in part created by following the tutorial from
 # the book "Violent Python by TJ O'Connor (ISBN: 978-1-59749-957-6)" As well
-# as some web resources and lots of googling around:
+# as some web resources:
+# http://docs.python-requests.org/en/latest/
+# http://www.crummy.com/software/BeautifulSoup/bs4/doc/
 # http://stackoverflow.com/questions/163009/urllib2-file-name
 # http://stackoverflow.com/questions/29717424/python-converting-url-into-directory
 #
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
-
-#from urllib.request import urlopen
-#from urllib.request import Request
 import requests
 from bs4 import BeautifulSoup
 from urllib.parse import urlparse
@@ -38,16 +37,11 @@ import shutil
 import os
 import re
 
-#start_url = 'http://portal.utpa.edu/utpa_main/daa_home/coecs_home/cs_home'
-#start_url = 'http://portal.utpa.edu/utpa_main/daa_home/coecs_home/cs_home'
-#start_url = 'https://my.utpa.edu/home'
-
-#start webpage of our crawler
-start_url = 'http://www.dmoz.org/Computers/Programming/Languages/Python/Resources'
+#where to start our crawling
+start_url = 'http://portal.utpa.edu/utpa_main/daa_home/coecs_home/cs_home'
 
 #where to store the files a.k.a. document corpus.
 base_os_dir = os.getcwd()+"/document_corpus"
-
 
 # this list data structure will keep track of all "good" urls. By good we mean
 # documents that we were able to parse and save to disk
@@ -64,11 +58,13 @@ max_links = 4
 
 create_subfolders = False
 
+allowed_domain = "utpa.edu"
 
 
 # # # # # # # # # # # # # # # # #
-# Simple function that will help "normalize" links. In other words, this function wil prepend the
-# base_url if needed.
+# This function returns an absolute URL. The reason is that some times when
+# parsing a hyper-link we will come across a relative URL that needs the
+# base url to function.
 # # # # # # # # # # # # # # # # # #
 def get_url(link, base_url):
     parsed_url = urlparse(base_url)
@@ -80,15 +76,15 @@ def get_url(link, base_url):
         return link
 
 # # # # # # # # # # # # # # # # # # # # # # # # #
-# This function simply checks if the domain of the link is allowed (a.k.a. white listed
-# if it is not, then the program will skip the link
+# This function simply checks if the domain of the link is allowed (a.k.a.
+# white listed if it is not, then the program will skip the link
 # # # # # # # # # # # # # # # # # # # # # # # # #
 def is_domain_allowed(link):
     if(link=="/"):
         return False
     elif(link[0]=='/'):
         return True
-    elif re.match(r'(.*)dmoz.org(.*?)',link):
+    elif re.match(r'(.*)' + allowed_domain+ '(.*?)',link):
         return True
     else:
 #        print("Not allowed: "+link)
@@ -97,6 +93,7 @@ def is_domain_allowed(link):
 def follow_links(html_page, base_url):
     bs = BeautifulSoup(html_page)
     try:
+        #look at links that start with http or with / (absolute or relative)
         for link in bs.find_all("a", href=re.compile('^http://|^/')) :
             if link.has_attr('href') and is_domain_allowed(link['href']) and len(links) < max_links:
                 my_url = get_url(link["href"], base_url)
@@ -127,9 +124,7 @@ def get_html(url):
                         full_filename = os.path.join(os_folderstructure + "/" + filename)
                 else:
                     full_filename = base_os_dir + "/" + filename
-                #print(os_folderstructure)
                 print("Using Filename: " , filename)
-                #print(page)
                 if filename != ".html":
                     try:
                         with open(full_filename, 'w') as f:
