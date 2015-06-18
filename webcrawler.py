@@ -3,11 +3,12 @@
 # CSCI 6379: Information Retrieval
 # Instructor: Dr. Chen
 # Date: June 12, 2015
+# Search Engine: Boom
 # Group Project Members:
 #   Alex Campos
-#   name
-#   name
-#   name
+#   Alvaro Leal
+#   Akhil Ch
+#   Divya Divu
 #
 # Description:
 # This program is a small web crawler that will be used to build a document
@@ -54,7 +55,7 @@ bad_links = []
 
 #since we want to limit our crawler to a "small" document corpus, we define a
 # variable that will limit the number of files fetched.
-max_links = 4
+max_links = 100
 
 create_subfolders = False
 
@@ -111,7 +112,8 @@ def get_html(url):
             print("Following URL: ", url)
        	    my_headers = { 'User-Agent': 'Mozilla/5.0' }
             r = requests.get(url, headers = my_headers)
-            if r.status_code == requests.codes.ok:
+            #only worry about documents we can sownload a(200 response code and text/html)
+            if r.status_code == requests.codes.ok and r.headers['content-type'].find('text/html') >=0:
                 page = r.text
                 filename = url.split('/')[-1].split('#')[0].split('?')[0]
                 if "." not in filename:
@@ -139,7 +141,7 @@ def get_html(url):
                         os.remove(full_filename) #do some cleanup
             else:
                 bad_links.append(my_url)
-                print("Page couldnt be fetched. Response with status code {} ".format(r.status_code))
+                print("Page couldnt be fetched. Response with status code {0} with content-type {1} ".format(r.status_code, r.headers['content-type']))
         else:
             print("Skipping URL: {} since we have been here before".format(my_url))
     except:

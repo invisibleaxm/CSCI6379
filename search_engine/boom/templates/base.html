@@ -73,18 +73,27 @@
   </head>
   <body>
 
-    <form id="form" class="form" method="post" enctype="application/x-www-form-urlencoded" accept-charset="UTF-8" action="/boom"/>
+    <form id="form" class="form" method="get" enctype="application/x-www-form-urlencoded" accept-charset="UTF-8" action="/search/"/>
         <h1>Welcome to the Boom search engine</h1>
         <div class="content">
             <div class="intro"><p>Enter your search terms and click on Submit Query</p></div>
             <div id="section0" >
-                <div class="field"><input type="text" id="Query" name="Query" required autofocus></div>
-                <div class="field"><div class="edit-options"><div class="edit"></div><div class="delete"></div></div><input type="submit" id="Boom" name="Boom"></div>
+                <div class="field"><input type="text" id="q" name="q" required autofocus></div>
+                <div class="field">
+                    <input type="submit" value="Search">
+                </div>
             </div>
         </div>
     </form>
     {% block content %}
-    Query String: {{ QueryString }}
+    <p>
+        {{ q }}
+    </p>
+    <p>
+       There is a total of <strong>100 files</strong> in the document corpus.
+
+    </p>
     {% endblock %}
   </body>
 </html>
+
