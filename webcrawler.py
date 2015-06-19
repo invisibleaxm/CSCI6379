@@ -4,11 +4,7 @@
 # Instructor: Dr. Chen
 # Date: June 12, 2015
 # Search Engine: Boom
-# Group Project Members:
-#   Alex Campos
-#   Alvaro Leal
-#   Akhil Ch
-#   Divya Divu
+# Group Project Members: Alex Campos, Alvaro Leal, Akhil Ch, Divya Vuppala
 #
 # Description:
 # This program is a small web crawler that will be used to build a document
@@ -26,20 +22,15 @@
 # as some web resources:
 # http://docs.python-requests.org/en/latest/
 # http://www.crummy.com/software/BeautifulSoup/bs4/doc/
-# http://stackoverflow.com/questions/163009/urllib2-file-name
-# http://stackoverflow.com/questions/29717424/python-converting-url-into-directory
 #
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 import requests
 from bs4 import BeautifulSoup
 from urllib.parse import urlparse
-import sys, traceback
-import shutil
-import os
-import re
+import sys, traceback, os, re
 
 #where to start our crawling
-start_url = 'http://portal.utpa.edu/utpa_main/daa_home/coecs_home/cs_home'
+start_url = 'http://cs.utpa.edu/'
 
 #where to store the files a.k.a. document corpus.
 base_os_dir = os.getcwd()+"/document_corpus"
@@ -57,8 +48,7 @@ bad_links = []
 # variable that will limit the number of files fetched.
 max_links = 100
 
-create_subfolders = False
-
+# we do not want to crawl anything outside of utpa.edu so we define this here.
 allowed_domain = "utpa.edu"
 
 
@@ -88,9 +78,13 @@ def is_domain_allowed(link):
     elif re.match(r'(.*)' + allowed_domain+ '(.*?)',link):
         return True
     else:
-#        print("Not allowed: "+link)
         return False
 
+# # # # # # # # # # # # # # # # # # # # # # # # # #
+# This is a helper function that parses the page looking for all hyper links
+# <a href="..."> tags and tries to download them to disk if and only if this is
+# a brand new link and if we have not reached the max number of desired links
+# # # # # # # # # # # # # # # # # # # # # # # # # #
 def follow_links(html_page, base_url):
     bs = BeautifulSoup(html_page)
     try:
@@ -100,60 +94,67 @@ def follow_links(html_page, base_url):
                 my_url = get_url(link["href"], base_url)
                 if my_url not in links and my_url not in bad_links:
                     get_html(my_url)
-
     except:
         traceback.print_exc(file=sys.stdout)
 
-
+# # # # # # # # # # # # # # # # # # # # # # # # # #
+# This function tries to download the web page from the web server into disk.
+# It keeps a history of all the "good" and "bad" links on two separate lists
+# to ensure that we only visit links that we have not seen before.
+# Once this funtion is done fetching the page, it calls follow_links which in
+# turns calls this function again making it a recursive call (for as long as
+# we havent reached the maximum number of links needed on the document corpus
+# # # # # # # # # # # # # # # # # # # # # # # # # #
 def get_html(url):
     try:
         my_url = get_url(url, url)
         if my_url not in links and my_url not in bad_links:
             print("Following URL: ", url)
        	    my_headers = { 'User-Agent': 'Mozilla/5.0' }
-            r = requests.get(url, headers = my_headers)
-            #only worry about documents we can sownload a(200 response code and text/html)
+
+            r = requests.get(url, headers = my_headers, allow_redirects=True)
+            if len(r.history ) > 0: #follow one redirect only to avoid loops
+                print("Found redirect, following {0} instead".format(r.url))
+                url = r.url
+                r = requests.get(url, headers = my_headers, allow_redirects=False)
+
+            # only worry about html/text docs that return a success status code
             if r.status_code == requests.codes.ok and r.headers['content-type'].find('text/html') >=0:
                 page = r.text
-                filename = url.split('/')[-1].split('#')[0].split('?')[0]
-                if "." not in filename:
-                    filename = filename + ".html"
-                if create_subfolders == True: #does the user prefer to create folder structure based on url parsing?
-                    folder_structure = urlparse(url)
-                    os_folderstructure = base_os_dir + folder_structure.path.rsplit('/',1)[0] ## add folder names from url
-       	            if not os.path.exists(os_folderstructure):
-                        os.makedirs(os_folderstructure,exist_ok=True)
-                        full_filename = os.path.join(os_folderstructure + "/" + filename)
-                else:
-                    full_filename = base_os_dir + "/" + filename
-                print("Using Filename: " , filename)
-                if filename != ".html":
-                    try:
-                        with open(full_filename, 'w') as f:
-                            f.write(page)
-                            links.append(my_url)
-                            print("Successfully fetched url {} now we are about to follow it's links".format(my_url))
-                            if len(links) < max_links: ## make this a parameter
-                                follow_links(page, my_url)
-                    except:
-                        print("There was an error writing to file, flagging this page {} as bad".format(my_url))
-                        bad_links.append(my_url)
-                        os.remove(full_filename) #do some cleanup
+                # we build a filename based on the current size of the "links"
+                # data structure. this way we avoid duplicate file names.
+                # We can later on write this to disk so we have
+                # a table with index, url etc if needed.
+                full_filename = base_os_dir + "/" + str(len(links) + 1) + ".htm"
+                try:
+                    with open(full_filename, 'w') as f:
+                        f.write(page)
+                        links.append(my_url)
+                        print("Success fetching: {} fetching next link:".format(my_url))
+                        if len(links) < max_links: ## make this a parameter
+                            follow_links(page, my_url)
+                except:
+                    print("There was an error writing to file, bad document: {}".format(my_url))
+                    bad_links.append(my_url)
+                    os.remove(full_filename) #do some cleanup
             else:
                 bad_links.append(my_url)
-                print("Page couldnt be fetched. Response with status code {0} with content-type {1} ".format(r.status_code, r.headers['content-type']))
+                print("Page couldnt be fetched. Status code {0} with content-type {1} ".format(r.status_code, r.headers['content-type']))
         else:
             print("Skipping URL: {} since we have been here before".format(my_url))
     except:
-#        print("Couldnt open page: ", url)
         raise
         #traceback.print_exc(file=sys.stdout)
         #pass
 
+
+# # # # # # # # # # # # # # # # # # # # # # # # # #
+# Main function. A very simple/small function that calls the get_html function
+# with the start_url defined. Once it finishes execution, it prints some statistics
+# as to how many good/bad links were found during this pass
+# # # # # # # # # # # # # # # # # # # # # # # # # #
 if __name__ == '__main__':
     print("Welcome to CSCI 6370 web crawler")
     get_html(start_url)
     print("Total number of documents retrieved: {} ".format(len(links)))
-    #print(links)
     print("Total number of bad documents: {}".format(len(bad_links)))
-    #print(bad_links)
