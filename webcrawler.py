@@ -51,6 +51,9 @@ max_links = 100
 # we do not want to crawl anything outside of utpa.edu so we define this here.
 allowed_domain = "utpa.edu"
 
+# table to save the filename, file id and file URL which will be used by the indexer on phase 2
+crawled_files = {}
+
 
 # # # # # # # # # # # # # # # # #
 # This function returns an absolute URL. The reason is that some times when
@@ -130,6 +133,7 @@ def get_html(url):
                     with open(full_filename, 'w') as f:
                         f.write(page)
                         links.append(my_url)
+                        crawled_files[full_filename] = my_url
                         print("Success fetching: {} fetching next link:".format(my_url))
                         if len(links) < max_links: ## make this a parameter
                             follow_links(page, my_url)
@@ -158,3 +162,5 @@ if __name__ == '__main__':
     get_html(start_url)
     print("Total number of documents retrieved: {} ".format(len(links)))
     print("Total number of bad documents: {}".format(len(bad_links)))
+    for k,v in crawled_files.items():
+            print(k + "," + v)
