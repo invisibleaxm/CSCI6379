@@ -7,8 +7,9 @@
 from bs4 import BeautifulSoup
 from nltk.corpus import stopwords
 from nltk.stem.porter import PorterStemmer
-from nltk.stem.lancaster import LancasterStemmer
-import string
+import csv
+#from nltk.stem.lancaster import LancasterStemmer
+
 
 from collections import defaultdict
 
@@ -29,17 +30,21 @@ def remove_puctuation(s):
                         ord('@'): '', ord('^'): '', ord('_'): '',
                         ord('\''): ''  })
 
-def index_document(filename):
-    soup = BeautifulSoup(open('document_corpus/' + filename))
+
+def index_document(id, filename, url):
+    soup = BeautifulSoup(open(filename))
     [x.extract() for x in soup.findAll('script')]
-    text = remove_puctuation(soup.getText())
+    raw_text = soup.getText()
+    text = remove_puctuation(raw_text)
     #text = soup.getText()
     terms = [i.lower() for i in text.split() if i not in stop]
     for term in terms:
         try:
-            invindex[term][filename] = invindex[term][filename] + 1
+            invindex[term][str(id)] = invindex[term][str(id)] + 1
         except:
-            invindex[term][filename] = 1
+            invindex[term][str(id)] = 1
+
+
 
 
 
@@ -53,8 +58,18 @@ def index_document(filename):
 
 #splitting (tokenizing) and removing stop words
 #print(st.stem([i for i in text.split() if i not in stop]))
-for i in range(1,100):
-    index_document(str(i) + '.htm')
+
+if __name__ == '__main__':
+    with open('crawled_files.txt', 'r') as inputfile:
+        reader = csv.DictReader(inputfile)
+        for row in reader:
+            index_document(row['index'], row['filename'], row['url'])
+            #print(row['index'], row['filename'], row['url'])
+    print("Searching for keyword: research")
+    print(invindex["research"])
+
+    #for i in range(1,100):
+     #   index_document(str(i) + '.htm')
 
 
 
@@ -66,7 +81,6 @@ for i in range(1,100):
 #    except:
 #        pass
 
-print("Searching for keyword: research")
-print(invindex["research"])
+
 #parse_document('2.htm')
 

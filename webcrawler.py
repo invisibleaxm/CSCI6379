@@ -54,6 +54,8 @@ allowed_domain = "utpa.edu"
 # table to save the filename, file id and file URL which will be used by the indexer on phase 2
 crawled_files = {}
 
+outfile = None
+
 
 # # # # # # # # # # # # # # # # #
 # This function returns an absolute URL. The reason is that some times when
@@ -128,12 +130,14 @@ def get_html(url):
                 # data structure. this way we avoid duplicate file names.
                 # We can later on write this to disk so we have
                 # a table with index, url etc if needed.
-                full_filename = base_os_dir + "/" + str(len(links) + 1) + ".htm"
+                i = str(len(links) + 1)
+                full_filename = base_os_dir + "/" + i + ".htm"
                 try:
                     with open(full_filename, 'w') as f:
                         f.write(page)
                         links.append(my_url)
                         crawled_files[full_filename] = my_url
+                        outfile.write(str(i) + "," + full_filename + "," + my_url + "\n")
                         print("Success fetching: {} fetching next link:".format(my_url))
                         if len(links) < max_links: ## make this a parameter
                             follow_links(page, my_url)
@@ -159,8 +163,13 @@ def get_html(url):
 # # # # # # # # # # # # # # # # # # # # # # # # # #
 if __name__ == '__main__':
     print("Welcome to CSCI 6370 web crawler")
+    outfile = open('crawled_files.txt', 'w')
+    outfile.write("index,filename,url\n")
     get_html(start_url)
+    outfile.close()
     print("Total number of documents retrieved: {} ".format(len(links)))
     print("Total number of bad documents: {}".format(len(bad_links)))
-    for k,v in crawled_files.items():
-            print(k + "," + v)
+
+    #with open('crawled_files.txt', 'w') as outfile:
+    #    for k,v in sorted(crawled_files.items()):
+    #        outfile.write(k + "," + v + "\n")
