@@ -87,7 +87,22 @@
     </form>
     {% block content %}
     <p>
-        {{ q }}
+
+    {% if q %}
+    <p>Showing a total of <strong> {{ q|length}}</strong> results</p>
+       {% for k, v in q.items %}
+
+
+              <a href="{{ v.url }}">
+                {{ v.title|upper }}
+              </a> <br />
+
+            URL: {{ v.url }}
+            <p>{{ v.snip }}</p>
+        {% endfor %}
+    {% else %}
+        <strong>No results found</strong>
+    {% endif %}
     </p>
     <p>
        There is a total of <strong>100 files</strong> in the document corpus.

@@ -29,6 +29,10 @@ import csv
 from docinfo import docinfo
 from collections import defaultdict
 import socketserver
+import struct
+#import json
+
+
 # invindex defines a 2 dimentional dictionary (hash table) which holds our
 # inverted document index. We chosed a dictionary data structure for its
 # fast searches and updates.
@@ -41,19 +45,46 @@ st = PorterStemmer
 
 document_table = {} #index of documents and their information
 
-# function copied with minor modifications from:
+# class copied with minor modifications from the following sites:
 # http://stackoverflow.com/questions/13979764/python-converting-sock-recv-to-string
+# http://stackoverflow.com/questions/17667903/python-socket-receive-large-amount-of-data
 class MyTCPHandler(socketserver.BaseRequestHandler):
+    def recv_msg(self):
+        # Read message length and unpack it into an integer
+        raw_msglen = self.recvall(4)
+        if not raw_msglen:
+            return None
+        msglen = struct.unpack(b'>I', raw_msglen.encode('utf-8'))[0]
+        # Read the message data
+        return self.recvall(msglen)
+
+    def recvall(self, n):
+        # Helper function to recv n bytes or return None if EOF is hit
+        data = ''
+        while len(data) < n:
+            packet = self.request.recv(n - len(data))
+            if not packet:
+                return None
+            data += packet.decode('utf-8')
+        return data
+
+    def send_msg(self, msg):
+        # Prefix each message with a 4-byte length (network byte order)
+        msg = struct.pack(b'>I', len(msg)) + msg.encode('utf-8')
+        self.request.sendall(msg)
+
+
     def handle(self):
         while True:
-            self.data = self.request.recv(1024)
+            #self.data = self.request.recv(1024)
+            self.data = self.recv_msg()
             if not self.data:
                 print('DISCONNECTED')
                 break
             terms = []
             search_results = {}
             msg = ""
-            search_query = self.data.decode('utf-8')
+            search_query = self.data
             print('RECEIVED: ' + search_query)
             search_terms = search_query.split()
             if len(search_terms) == 1:
@@ -68,10 +99,10 @@ class MyTCPHandler(socketserver.BaseRequestHandler):
                         terms.append(keyword)
                 search_results = do_search(terms,operation)
             for k, v in search_results.items():
-                msg += "Docid: {0} : {1}\n".format(k, document_table[k].url)
-            self.request.sendall(msg.encode('utf-8'))
+                msg += "id:{0},".format(k)
 
-
+            #self.request.sendall(msg.encode('utf-8'))
+            self.send_msg(msg[:-1])
 
 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
@@ -90,7 +121,7 @@ def remove_puctuation(s):
                         ord('<'): '', ord(';'): '', ord('{'): '', ord('}'): '',
                         ord('/'): '', ord('*'): '', ord('='): '', ord('?'): '',
                         ord('@'): '', ord('^'): '', ord('_'): '',
-                        ord('\''): ''  })
+                        ord('\''): '', ord('\uc2bb'): '' , ord('\xbb'): '' })
 
 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
@@ -114,7 +145,7 @@ def index_document(id, filename):
     #get title of document
     title = soup.title.contents[0]
     #get snippet of text (20 words from the middle of the text)
-    snip = text.split()[60:80]
+    snip = text.split()[160:190]
     #save the title and the snippet into the document_table (reference)
     document_table[mydoc.id].title = title
     document_table[mydoc.id].snip = " ".join(snip)
@@ -127,9 +158,12 @@ def index_document(id, filename):
         except:
             invindex[term][str(id)] = 1
 
-
-
-
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+# This function performs a search against the inverted index. If it detects only
+# one term, then the search is very straight forward since we just return the
+# values associated with that term. If it detects the keywords "AND, OR BUT" we
+# use an aux array to compute the intersection of the corresponding search.
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 def do_search(myterms, operator):
     termA = {}
     #termB = {}
@@ -151,27 +185,29 @@ def do_search(myterms, operator):
             for k, v in termA.items():
                 if k not in termB.keys():
                     termResults[k] = v
-
-    #merge both dictionaries
-
-   # print("\nThe following files match your query string")
-   # print("\n*******************************************")
-   # for k, v in termResults.items():
-   #         print("Document {0} : {1}".format(k, document_table[k].url))
-   # print("\nTotal documents found : {0}".format(len(termResults)))
-   # print("\n*******************************************")
     return termResults
 
-#print(punctuation)
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+# This function saves the document reference data structure into a textfile
+# using the json format. This file is then read by our search engine at runtime
+# and used to extract interesting fields like title, summary (snip) etc
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+def save_doctable2disk():
+    print("Saving Document Reference Table")
+    #with open("document_reference.json", 'w') as f:
+    outtext = "["
+    for k in document_table.keys():
+        outtext = outtext + "\n" + document_table[k].to_JSON()
+        outtext += ","
+    outtext = outtext[:-1]
+    outtext += "\n]"
+    with open("search_engine/document_reference.json", 'w') as f:
+        f.write(outtext)
 
-
-
-#print(st.stem("saying"))
-#print(st.stem("going"))
-
-#splitting (tokenizing) and removing stop words
-#print(st.stem([i for i in text.split() if i not in stop]))
-
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+# Main driver function, it provides a list of files to index, saves
+# a reference table to disk and starts the TCP/IP network socket listener.
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 if __name__ == '__main__':
     print("Indexing 100 documents, please wait a few seconds.")
     with open('crawled_files.txt', 'r') as inputfile:
@@ -183,49 +219,8 @@ if __name__ == '__main__':
             mydoc.url = row['url']
             document_table[mydoc.id] = mydoc
             index_document(mydoc.id, mydoc.filename)
+    save_doctable2disk()
     print("Now accepting queries...")
     server = socketserver.TCPServer(('localhost', 9999), MyTCPHandler)
     server.serve_forever()
-
-   # while True:
-   #     terms = []
-   #     search_query = input("Enter search term or quit to exit: ")
-   #     if search_query == "quit":
-   #         break
-   #     else:
-   #         search_terms = search_query.split()
-   #         if len(search_terms) == 1:
-   #             terms.append(search_terms[0])
-   #             do_search(terms, None)
-   #         else:
-   #             for keyword in search_terms:
-   #                 if keyword == "OR" or keyword == "AND" or keyword == "BUT":
-   #                     operation = keyword
-   #                 else:
-   #                     terms.append(keyword)
-   #             do_search(terms,operation)
-
-
-
-
-        #    #print(row['index'], row['filename'], row['url'])
-    #print("Searching for keyword: research")
-    #print(invindex["research"])
-    #print(document_table['2'].filename)
-
-    #for i in range(1,100):
-     #   index_document(str(i) + '.htm')
-
-
-
-
-
-#for key, value in document_table.items():
-#    try:
-#        print(value.id, value.snip)
-#    except:
-#        pass
-
-
-#parse_document('2.htm')
 
