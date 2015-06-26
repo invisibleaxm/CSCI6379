@@ -20,6 +20,7 @@
 # toolkit (http://www.nltk.org/) which provides our stopword
 # removal as well as our Stemmer algorithm
 # http://tuhrig.de/extracting-meaningful-content-from-raw-html/
+# http://stackoverflow.com/questions/13979764/python-converting-sock-recv-to-string
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 from bs4 import BeautifulSoup
 from nltk.corpus import stopwords
@@ -27,6 +28,7 @@ from nltk.stem.porter import PorterStemmer
 import csv
 from docinfo import docinfo
 from collections import defaultdict
+import socketserver
 # invindex defines a 2 dimentional dictionary (hash table) which holds our
 # inverted document index. We chosed a dictionary data structure for its
 # fast searches and updates.
@@ -38,6 +40,36 @@ stop = stopwords.words('english')
 st = PorterStemmer
 
 document_table = {} #index of documents and their information
+
+# function copied with minor modifications from:
+# http://stackoverflow.com/questions/13979764/python-converting-sock-recv-to-string
+class MyTCPHandler(socketserver.BaseRequestHandler):
+    def handle(self):
+        while True:
+            self.data = self.request.recv(1024)
+            if not self.data:
+                print('DISCONNECTED')
+                break
+            terms = []
+            search_results = {}
+            msg = ""
+            search_query = self.data.decode('utf-8')
+            print('RECEIVED: ' + search_query)
+            search_terms = search_query.split()
+            if len(search_terms) == 1:
+                terms.append(search_terms[0])
+                search_results = do_search(terms, None)
+
+            else:
+                for keyword in search_terms:
+                    if keyword == "OR" or keyword == "AND" or keyword == "BUT":
+                        operation = keyword
+                    else:
+                        terms.append(keyword)
+                search_results = do_search(terms,operation)
+            for k, v in search_results.items():
+                msg += "Docid: {0} : {1}\n".format(k, document_table[k].url)
+            self.request.sendall(msg.encode('utf-8'))
 
 
 
@@ -119,14 +151,16 @@ def do_search(myterms, operator):
             for k, v in termA.items():
                 if k not in termB.keys():
                     termResults[k] = v
+
     #merge both dictionaries
 
-    print("\nThe following files match your query string")
-    print("\n*******************************************")
-    for k, v in termResults.items():
-            print("Document {0} : {1}".format(k, document_table[k].url))
-    print("\nTotal documents found : {0}".format(len(termResults)))
-    print("\n*******************************************")
+   # print("\nThe following files match your query string")
+   # print("\n*******************************************")
+   # for k, v in termResults.items():
+   #         print("Document {0} : {1}".format(k, document_table[k].url))
+   # print("\nTotal documents found : {0}".format(len(termResults)))
+   # print("\n*******************************************")
+    return termResults
 
 #print(punctuation)
 
@@ -149,24 +183,27 @@ if __name__ == '__main__':
             mydoc.url = row['url']
             document_table[mydoc.id] = mydoc
             index_document(mydoc.id, mydoc.filename)
+    print("Now accepting queries...")
+    server = socketserver.TCPServer(('localhost', 9999), MyTCPHandler)
+    server.serve_forever()
 
-    while True:
-        terms = []
-        search_query = input("Enter search term or quit to exit: ")
-        if search_query == "quit":
-            break
-        else:
-            search_terms = search_query.split()
-            if len(search_terms) == 1:
-                terms.append(search_terms[0])
-                do_search(terms, None)
-            else:
-                for keyword in search_terms:
-                    if keyword == "OR" or keyword == "AND" or keyword == "BUT":
-                        operation = keyword
-                    else:
-                        terms.append(keyword)
-                do_search(terms,operation)
+   # while True:
+   #     terms = []
+   #     search_query = input("Enter search term or quit to exit: ")
+   #     if search_query == "quit":
+   #         break
+   #     else:
+   #         search_terms = search_query.split()
+   #         if len(search_terms) == 1:
+   #             terms.append(search_terms[0])
+   #             do_search(terms, None)
+   #         else:
+   #             for keyword in search_terms:
+   #                 if keyword == "OR" or keyword == "AND" or keyword == "BUT":
+   #                     operation = keyword
+   #                 else:
+   #                     terms.append(keyword)
+   #             do_search(terms,operation)
 
 
 
