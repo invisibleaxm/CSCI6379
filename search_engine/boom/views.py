@@ -8,7 +8,7 @@ import struct
 import socket
 
 
-
+#document reference table used to get title, url and snip
 reference_table = {}
 
 
