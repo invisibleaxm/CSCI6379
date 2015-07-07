@@ -30,7 +30,11 @@ from docinfo import docinfo
 from collections import defaultdict
 import socketserver
 import struct
+from operator import itemgetter
 import enchant
+
+
+
 #import json
 
 
@@ -46,7 +50,13 @@ st = PorterStemmer
 
 document_table = {} #index of documents and their information
 
+relevant_terms = []
+
+lower_bound = 11
+upper_bound = 89
+
 d = enchant.Dict("en_US")
+
 # class copied with minor modifications from the following sites:
 # http://stackoverflow.com/questions/13979764/python-converting-sock-recv-to-string
 # http://stackoverflow.com/questions/17667903/python-socket-receive-large-amount-of-data
@@ -161,6 +171,32 @@ def index_document(id, filename):
             except:
                 invindex[term][str(id)] = 1
 
+def calculateMostFrequentIndex():
+    global relevant_terms
+    global invindex
+
+    for k in invindex.keys():
+        term_frequency = 0
+        for d in invindex[k].keys():
+            term_frequency += invindex[k][d]
+        relevant_terms.append( (k, term_frequency) )
+    relevant_terms = sorted(relevant_terms,key=itemgetter(1),reverse=True)
+    total_terms = len(relevant_terms)
+    print("(BEFORE) Total number of terms: {0}".format(total_terms))
+    print("Selecting words between 11% and 89% frequency...")
+    x = int((lower_bound * total_terms) / 100)
+    y = total_terms - x
+    del_begining = relevant_terms[:x]
+    del_ending = relevant_terms[y:]
+    relevant_terms = relevant_terms[x:y]
+    #remove irrelevant keys from inverted index
+    for k in del_begining:
+        del invindex[k[0]]
+    for k in del_ending:
+        del invindex[k[0]]
+    print("(AFTER) Total number of terms: {0}".format(len(invindex)))
+
+
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 # This function performs a search against the inverted index. If it detects only
 # one term, then the search is very straight forward since we just return the
@@ -222,8 +258,13 @@ if __name__ == '__main__':
             mydoc.url = row['url']
             document_table[mydoc.id] = mydoc
             index_document(mydoc.id, mydoc.filename)
+    calculateMostFrequentIndex()
+    #for entry in relevant_terms:
+    #    try:
+    #        print(entry)
+    #    except:
+    #        pass
     save_doctable2disk()
-    print("Total number of terms: {0}".format(len(invindex)))
     print("Now accepting queries...")
     server = socketserver.TCPServer(('localhost', 9999), MyTCPHandler)
     server.serve_forever()
