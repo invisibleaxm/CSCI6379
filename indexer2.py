@@ -34,10 +34,6 @@ from operator import itemgetter
 import enchant
 
 
-
-#import json
-
-
 # invindex defines a 2 dimentional dictionary (hash table) which holds our
 # inverted document index. We chosed a dictionary data structure for its
 # fast searches and updates.
@@ -88,7 +84,6 @@ class MyTCPHandler(socketserver.BaseRequestHandler):
 
     def handle(self):
         while True:
-            #self.data = self.request.recv(1024)
             self.data = self.recv_msg()
             if not self.data:
                 print('DISCONNECTED')
@@ -109,11 +104,9 @@ class MyTCPHandler(socketserver.BaseRequestHandler):
                         operation = keyword
                     else:
                         terms.append(keyword)
-                search_results = do_search(terms,operation)
+                search_results = do_search(terms, operation)
             for k, v in search_results.items():
                 msg += "id:{0},".format(k)
-
-            #self.request.sendall(msg.encode('utf-8'))
             self.send_msg(msg[:-1])
 
 
