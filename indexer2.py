@@ -31,7 +31,7 @@ from collections import defaultdict
 import socketserver
 import struct
 from operator import itemgetter
-import enchant
+
 
 
 # invindex defines a 2 dimentional dictionary (hash table) which holds our
@@ -51,7 +51,7 @@ relevant_terms = []
 lower_bound = 11
 upper_bound = 89
 
-d = enchant.Dict("en_US")
+
 
 # class copied with minor modifications from the following sites:
 # http://stackoverflow.com/questions/13979764/python-converting-sock-recv-to-string
@@ -158,11 +158,10 @@ def index_document(id, filename):
     #tokenize the page into words separated by spaces
     terms = [i.lower() for i in text.split() if i not in stop]
     for term in terms:
-        if d.check(term):
-            try:
-                invindex[term][str(id)] = invindex[term][str(id)] + 1
-            except:
-                invindex[term][str(id)] = 1
+        try:
+            invindex[term][str(id)] = invindex[term][str(id)] + 1
+        except:
+            invindex[term][str(id)] = 1
 
 def calculateMostFrequentIndex():
     global relevant_terms

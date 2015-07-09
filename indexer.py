@@ -30,7 +30,7 @@ from docinfo import docinfo
 from collections import defaultdict
 import socketserver
 import struct
-import enchant
+
 #import json
 
 
@@ -46,7 +46,7 @@ st = PorterStemmer
 
 document_table = {} #index of documents and their information
 
-d = enchant.Dict("en_US")
+
 # class copied with minor modifications from the following sites:
 # http://stackoverflow.com/questions/13979764/python-converting-sock-recv-to-string
 # http://stackoverflow.com/questions/17667903/python-socket-receive-large-amount-of-data
@@ -155,11 +155,10 @@ def index_document(id, filename):
     #tokenize the page into words separated by spaces
     terms = [i.lower() for i in text.split() if i not in stop]
     for term in terms:
-        if d.check(term):
-            try:
-                invindex[term][str(id)] = invindex[term][str(id)] + 1
-            except:
-                invindex[term][str(id)] = 1
+        try:
+            invindex[term][str(id)] = invindex[term][str(id)] + 1
+        except:
+            invindex[term][str(id)] = 1
 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 # This function performs a search against the inverted index. If it detects only
